@@ -85,7 +85,7 @@ _ensure-node:
   export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"; \
   if [ ! -s "$NVM_DIR/nvm.sh" ]; then \
     NVM_VERSION="$(curl -fsSL https://api.github.com/repos/nvm-sh/nvm/releases/latest | sed -n 's/.*\"tag_name\"[[:space:]]*:[[:space:]]*\"\\([^\\\"]*\\)\".*/\\1/p' | head -n1 || true)"; \
-    if [ -z "${NVM_VERSION:-}" ]; then NVM_VERSION="v0.39.7"; fi; \
+    if [ -z "${NVM_VERSION:-}" ]; then NVM_VERSION="v0.40.04"; fi; \
     curl -fsSL "https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/install.sh" | bash; \
   fi; \
   . "$NVM_DIR/nvm.sh"; \
