@@ -115,4 +115,3 @@ services:
       - registry
 volumes:
   pgdata:
-    name: ${PGDATA_VOLUME:-ferriskey_pgdata}

@@ -209,9 +209,7 @@ db-down: _ensure-docker-running
   @# Stop and remove only Postgres + its data volume.
   @# This is destructive for local data (drops your local DB state).
   @# Remove only the db container and its data volume (default: ferriskey_pgdata).
-  @{{compose}} stop db || true
-  @{{compose}} rm -f db || true
-  @docker volume rm -f "${PGDATA_VOLUME:-{{pgdata_volume_default}}}" || true
+  @{{compose}} down -v db || true
 
 dev-test-down: _ensure-docker-running
   @# Tear down docker compose build profile containers and volumes.
