@@ -84,7 +84,9 @@ _ensure-node:
   fi; \
   export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"; \
   if [ ! -s "$NVM_DIR/nvm.sh" ]; then \
-    curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash; \
+    NVM_VERSION="$(curl -fsSL https://api.github.com/repos/nvm-sh/nvm/releases/latest | sed -n 's/.*\"tag_name\"[[:space:]]*:[[:space:]]*\"\\([^\\\"]*\\)\".*/\\1/p' | head -n1 || true)"; \
+    if [ -z "${NVM_VERSION:-}" ]; then NVM_VERSION="v0.39.7"; fi; \
+    curl -fsSL "https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/install.sh" | bash; \
   fi; \
   . "$NVM_DIR/nvm.sh"; \
   nvm install --lts; \
@@ -166,6 +168,7 @@ dev-setup: _ensure-docker-running
 migrate: _ensure-sqlx-cli
   @# Apply SQL migrations from core/migrations.
   @# Uses DATABASE_URL if set; otherwise constructs it from api/.env values.
+  @# NOTE: When constructing DATABASE_URL, DATABASE_USER and DATABASE_PASSWORD are percent-encoded first.
   @if [ -n "${DATABASE_URL:-}" ]; then \
     sqlx migrate run --source core/migrations; \
     exit 0; \
@@ -177,7 +180,18 @@ migrate: _ensure-sqlx-cli
   : "${DATABASE_NAME:=ferriskey}"; \
   : "${DATABASE_USER:=ferriskey}"; \
   : "${DATABASE_PASSWORD:=ferriskey}"; \
-  export DATABASE_URL="postgres://${DATABASE_USER}:${DATABASE_PASSWORD}@${DATABASE_HOST}:${DATABASE_PORT}/${DATABASE_NAME}"; \
+  if command -v python3 >/dev/null 2>&1; then \
+    DATABASE_USER_ENC="$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=\"\"))' "${DATABASE_USER}")"; \
+    DATABASE_PASSWORD_ENC="$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=\"\"))' "${DATABASE_PASSWORD}")"; \
+  elif command -v python >/dev/null 2>&1; then \
+    DATABASE_USER_ENC="$(python -c 'import sys\ntry:\n  from urllib.parse import quote\nexcept ImportError:\n  from urllib import quote\nprint(quote(sys.argv[1], safe=\"\"))' "${DATABASE_USER}")"; \
+    DATABASE_PASSWORD_ENC="$(python -c 'import sys\ntry:\n  from urllib.parse import quote\nexcept ImportError:\n  from urllib import quote\nprint(quote(sys.argv[1], safe=\"\"))' "${DATABASE_PASSWORD}")"; \
+  else \
+    echo "Missing python3/python to percent-encode DATABASE_USER/DATABASE_PASSWORD when building DATABASE_URL." >&2; \
+    echo "Workaround: set DATABASE_URL directly (recommended), or ensure DATABASE_USER/DATABASE_PASSWORD are already percent-encoded." >&2; \
+    exit 1; \
+  fi; \
+  export DATABASE_URL="postgres://${DATABASE_USER_ENC}:${DATABASE_PASSWORD_ENC}@${DATABASE_HOST}:${DATABASE_PORT}/${DATABASE_NAME}"; \
   sqlx migrate run --source core/migrations
 
 dev: _ensure-cargo-watch
