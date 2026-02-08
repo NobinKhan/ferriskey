@@ -181,11 +181,11 @@ migrate: _ensure-sqlx-cli
   : "${DATABASE_USER:=ferriskey}"; \
   : "${DATABASE_PASSWORD:=ferriskey}"; \
   if command -v python3 >/dev/null 2>&1; then \
-    DATABASE_USER_ENC="$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=\"\"))' "${DATABASE_USER}")"; \
-    DATABASE_PASSWORD_ENC="$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=\"\"))' "${DATABASE_PASSWORD}")"; \
+    DATABASE_USER_ENC="$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "${DATABASE_USER}")"; \
+    DATABASE_PASSWORD_ENC="$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "${DATABASE_PASSWORD}")"; \
   elif command -v python >/dev/null 2>&1; then \
-    DATABASE_USER_ENC="$(python -c 'import sys\ntry:\n  from urllib.parse import quote\nexcept ImportError:\n  from urllib import quote\nprint(quote(sys.argv[1], safe=\"\"))' "${DATABASE_USER}")"; \
-    DATABASE_PASSWORD_ENC="$(python -c 'import sys\ntry:\n  from urllib.parse import quote\nexcept ImportError:\n  from urllib import quote\nprint(quote(sys.argv[1], safe=\"\"))' "${DATABASE_PASSWORD}")"; \
+    DATABASE_USER_ENC="$(python -c 'import sys\ntry:\n  from urllib.parse import quote\nexcept ImportError:\n  from urllib import quote\nprint(quote(sys.argv[1], safe=""))' "${DATABASE_USER}")"; \
+    DATABASE_PASSWORD_ENC="$(python -c 'import sys\ntry:\n  from urllib.parse import quote\nexcept ImportError:\n  from urllib import quote\nprint(quote(sys.argv[1], safe=""))' "${DATABASE_PASSWORD}")"; \
   else \
     echo "Missing python3/python to percent-encode DATABASE_USER/DATABASE_PASSWORD when building DATABASE_URL." >&2; \
     echo "Workaround: set DATABASE_URL directly (recommended), or ensure DATABASE_USER/DATABASE_PASSWORD are already percent-encoded." >&2; \
