@@ -6,6 +6,22 @@ export type JwtToken = {
   id_token?: string
 }
 
+export type TokenIntrospectionResponse = {
+  active: boolean
+  scope?: string
+  client_id?: string
+  username?: string
+  sub?: string
+  token_type?: string
+  exp?: number
+  iat?: number
+  nbf?: number
+  aud?: string
+  iss?: string
+  jti?: string
+  realm?: string
+}
+
 export type FerriskeyConfig = {
   apiOrigin: string // e.g. http://localhost:8080
   rootPath: string // e.g. '' or '/api'
@@ -38,7 +54,11 @@ export function authorizeUrl(cfg: FerriskeyConfig, state: string): string {
   return url.toString()
 }
 
-async function postForm<T>(url: string, body: Record<string, string | undefined>): Promise<T> {
+async function postForm<T>(
+  url: string,
+  body: Record<string, string | undefined>,
+  headers?: Record<string, string>
+): Promise<T> {
   const form = new URLSearchParams()
   for (const [k, v] of Object.entries(body)) {
     if (v === undefined) continue
@@ -49,7 +69,8 @@ async function postForm<T>(url: string, body: Record<string, string | undefined>
   const res = await fetch(url, {
     method: 'POST',
     headers: {
-      'content-type': 'application/x-www-form-urlencoded'
+      'content-type': 'application/x-www-form-urlencoded',
+      ...(headers ?? {})
     },
     body: form.toString()
   })
@@ -93,4 +114,34 @@ export async function refreshToken(cfg: FerriskeyConfig, refreshToken: string): 
     refresh_token: refreshToken,
     scope: cfg.scope.trim() || undefined
   })
+}
+
+function basicAuthHeaderValue(clientId: string, clientSecret: string): string {
+  // Browser base64 helper; Ferriskey expects RFC7617-ish `Basic base64(clientId:clientSecret)`.
+  const raw = `${clientId}:${clientSecret}`
+  return `Basic ${btoa(raw)}`
+}
+
+export async function introspectToken(
+  cfg: FerriskeyConfig,
+  token: string,
+  tokenTypeHint: 'access_token' | 'refresh_token' = 'access_token'
+): Promise<TokenIntrospectionResponse> {
+  const base = apiBase(cfg)
+  const url = `${base}/realms/${encodeURIComponent(cfg.realm)}/protocol/openid-connect/token/introspect`
+
+  if (!cfg.clientId.trim() || !cfg.clientSecret.trim()) {
+    throw new Error('Introspection requires a confidential client: set client_id and client_secret.')
+  }
+
+  return await postForm<TokenIntrospectionResponse>(
+    url,
+    {
+      token,
+      token_type_hint: tokenTypeHint
+    },
+    {
+      authorization: basicAuthHeaderValue(cfg.clientId, cfg.clientSecret)
+    }
+  )
 }

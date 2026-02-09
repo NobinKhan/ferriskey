@@ -198,6 +198,28 @@ button.secondary {
   align-items: start;
 }
 
+.divider {
+  margin: 14px 0 12px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.subhead {
+  margin: 0 0 8px;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.introspect {
+  border: 1px solid rgba(124, 247, 212, 0.28);
+  background: rgba(124, 247, 212, 0.08);
+  padding: 12px;
+  border-radius: 12px;
+  overflow: auto;
+}
+
 .k {
   color: var(--muted);
   font-size: 12px;

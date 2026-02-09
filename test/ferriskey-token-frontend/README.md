@@ -6,6 +6,7 @@ Minimal React + Vite test UI that:
 2. Receives the redirect back with `?code=...&state=...`
 3. Exchanges the code for an access + refresh token via `/protocol/openid-connect/token`
 4. Displays the tokens and lets you refresh
+5. Introspects the access token via `/protocol/openid-connect/token/introspect`
 
 ## Run
 
@@ -33,6 +34,8 @@ Then open `http://localhost:5173/`.
 - OAuth params used by this app:
   - Authorize request: `response_type=code`, `client_id`, `redirect_uri`, `scope` (optional), `state`
   - Token request: `grant_type=authorization_code`, `client_id`, `client_secret` (optional), `code`
+  - Introspect request: `POST /protocol/openid-connect/token/introspect` with `Authorization: Basic base64(client_id:client_secret)` and `token=<access_token>`
+    - Ferriskey requires a confidential client and the caller's service account to have the `introspect` role.
 
 ## Security
 

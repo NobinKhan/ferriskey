@@ -2,9 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react'
 import {
   type FerriskeyConfig,
   type JwtToken,
+  type TokenIntrospectionResponse,
   apiBase,
   authorizeUrl,
   exchangeCodeForToken,
+  introspectToken as doIntrospect,
   refreshToken as doRefreshToken
 } from './ferriskey'
 
@@ -64,6 +66,7 @@ export default function App() {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [token, setToken] = useState<JwtToken | null>(null)
+  const [introspection, setIntrospection] = useState<TokenIntrospectionResponse | null>(null)
 
   const computed = useMemo(() => {
     const base = apiBase(cfg)
@@ -109,6 +112,7 @@ export default function App() {
         setBusy(true)
         const t = await exchangeCodeForToken(cfgAtAuth, code!)
         setToken(t)
+        setIntrospection(null)
 
         // Clean URL so tokens don't get re-requested on refresh.
         window.history.replaceState({}, '', window.location.pathname)
@@ -123,6 +127,7 @@ export default function App() {
   async function onLogin() {
     setErr(null)
     setToken(null)
+    setIntrospection(null)
 
     if (!cfg.clientId.trim()) {
       setErr('client_id is required')
@@ -148,6 +153,22 @@ export default function App() {
     try {
       const t = await doRefreshToken(cfg, token.refresh_token)
       setToken(t)
+      setIntrospection(null)
+    } catch (e: any) {
+      setErr(e?.message ?? String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onIntrospectAccessToken() {
+    if (!token?.access_token) return
+
+    setErr(null)
+    setBusy(true)
+    try {
+      const r = await doIntrospect(cfg, token.access_token, 'access_token')
+      setIntrospection(r)
     } catch (e: any) {
       setErr(e?.message ?? String(e))
     } finally {
@@ -158,6 +179,7 @@ export default function App() {
   function onClear() {
     setErr(null)
     setToken(null)
+    setIntrospection(null)
     sessionStorage.removeItem(SS_STATE_KEY)
     sessionStorage.removeItem(SS_CFG_KEY)
     window.history.replaceState({}, '', window.location.pathname)
@@ -281,6 +303,9 @@ export default function App() {
                 <button disabled={busy} onClick={onRefresh}>
                   Refresh token
                 </button>
+                <button disabled={busy} onClick={onIntrospectAccessToken}>
+                  Introspect access token
+                </button>
               </div>
 
               <div className="kv">
@@ -309,6 +334,15 @@ export default function App() {
                   </>
                 ) : null}
               </div>
+
+              <div className="divider" />
+
+              <h3 className="subhead">Introspection</h3>
+              {introspection ? (
+                <pre className="introspect mono">{JSON.stringify(introspection, null, 2)}</pre>
+              ) : (
+                <div className="empty">No introspection yet. Click “Introspect access token”.</div>
+              )}
             </>
           ) : (
             <div className="empty">
