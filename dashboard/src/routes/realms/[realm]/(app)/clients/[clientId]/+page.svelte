@@ -66,6 +66,9 @@
     return new Intl.DateTimeFormat('en', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(d);
   }
 
+  const redirects = $derived(data.redirects ?? []);
+  const postLogoutRedirects = $derived(data.postLogoutRedirects ?? []);
+  const roles = $derived(data.roles ?? []);
   const realm = $derived(page.params.realm);
 </script>
 
@@ -127,8 +130,8 @@
     <section class="client-detail__info-grid">
       <div class="info-card"><Calendar size={16} /><div><span>Created</span><strong>{formatDate(data.client.created_at)}</strong></div></div>
       <div class="info-card"><Calendar size={16} /><div><span>Updated</span><strong>{formatDate(data.client.updated_at)}</strong></div></div>
-      <div class="info-card"><Globe size={16} /><div><span>Redirects</span><strong>{data.redirects.length}</strong></div></div>
-      <div class="info-card"><Shield size={16} /><div><span>Roles</span><strong>{data.roles.length}</strong></div></div>
+      <div class="info-card"><Globe size={16} /><div><span>Redirects</span><strong>{redirects.length}</strong></div></div>
+      <div class="info-card"><Shield size={16} /><div><span>Roles</span><strong>{roles.length}</strong></div></div>
     </section>
 
     {#if data.client.client_secret}
@@ -150,8 +153,8 @@
       {/snippet}
 
       <div class="item-list">
-        {#if data.redirects.length > 0}
-          {#each data.redirects as uri (uri.id)}
+        {#if redirects.length > 0}
+          {#each redirects as uri (uri.id)}
             <div class="item-row">
               <div class="item-row__icon"><ExternalLink size={18} /></div>
               <div class="item-row__info">
@@ -181,8 +184,8 @@
       {/snippet}
 
       <div class="item-list">
-        {#if data.postLogoutRedirects.length > 0}
-          {#each data.postLogoutRedirects as uri (uri.id)}
+        {#if postLogoutRedirects.length > 0}
+          {#each postLogoutRedirects as uri (uri.id)}
             <div class="item-row">
               <div class="item-row__icon item-row__icon--warn"><LogOut size={18} /></div>
               <div class="item-row__info">
@@ -212,8 +215,8 @@
       {/snippet}
 
       <div class="item-list">
-        {#if data.roles.length > 0}
-          {#each data.roles as role (role.id)}
+        {#if roles.length > 0}
+          {#each roles as role (role.id)}
             <div class="item-row">
               <div class="item-row__icon item-row__icon--success"><ShieldCheck size={18} /></div>
               <div class="item-row__info">

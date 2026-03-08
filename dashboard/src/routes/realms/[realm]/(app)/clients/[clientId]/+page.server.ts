@@ -37,11 +37,12 @@ export const load: PageServerLoad = async ({ cookies, fetch, params, url }) => {
   const clientId = params.clientId;
 
   const [client, redirects, postLogoutRedirects, roles] = await Promise.all([
-    loadRealmResource<Client>({ cookies, fetch, params, url }, `/realms/${realm}/clients/${clientId}`),
-    loadRealmResource<{ data: RedirectUri[] }>({ cookies, fetch, params, url }, `/realms/${realm}/clients/${clientId}/redirects`)
-      .then((r) => r.data).catch(() => [] as RedirectUri[]),
-    loadRealmResource<{ data: RedirectUri[] }>({ cookies, fetch, params, url }, `/realms/${realm}/clients/${clientId}/post-logout-redirects`)
-      .then((r) => r.data).catch(() => [] as RedirectUri[]),
+    loadRealmResource<{ data: Client }>({ cookies, fetch, params, url }, `/realms/${realm}/clients/${clientId}`)
+      .then((r) => r.data),
+    loadRealmResource<RedirectUri[]>({ cookies, fetch, params, url }, `/realms/${realm}/clients/${clientId}/redirects`)
+      .catch(() => [] as RedirectUri[]),
+    loadRealmResource<RedirectUri[]>({ cookies, fetch, params, url }, `/realms/${realm}/clients/${clientId}/post-logout-redirects`)
+      .catch(() => [] as RedirectUri[]),
     loadRealmResource<{ data: ClientRole[] }>({ cookies, fetch, params, url }, `/realms/${realm}/clients/${clientId}/roles`)
       .then((r) => r.data).catch(() => [] as ClientRole[]),
   ]);

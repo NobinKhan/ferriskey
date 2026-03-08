@@ -1296,15 +1296,22 @@ This is a server error that should be investigated. Do not forward back this mes
         auth_session: &AuthSession,
         authorization_code: &str,
     ) -> Result<String, CoreError> {
-        let state = auth_session
-            .state
-            .as_ref()
-            .ok_or(CoreError::InternalServerError)?;
+        let separator = if auth_session.redirect_uri.contains('?') {
+            '&'
+        } else {
+            '?'
+        };
+        let mut redirect_url = format!(
+            "{}{}code={}",
+            auth_session.redirect_uri, separator, authorization_code
+        );
 
-        Ok(format!(
-            "{}?code={}&state={}",
-            auth_session.redirect_uri, authorization_code, state
-        ))
+        if let Some(state) = auth_session.state.as_ref() {
+            redirect_url.push_str("&state=");
+            redirect_url.push_str(state);
+        }
+
+        Ok(redirect_url)
     }
 
     fn claims_to_introspection_response(
