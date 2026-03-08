@@ -8,7 +8,8 @@ import {
   PanelsTopLeft,
   Shield,
   Users,
-  Waypoints
+  Waypoints,
+  Webhook
 } from 'lucide-svelte';
 
 type IconComponent = typeof Activity;
@@ -101,6 +102,12 @@ export const navigationGroups: NavigationGroup[] = [
         icon: Compass,
         href: (realm) => `/realms/${realm}/compass`,
         tag: 'Beta'
+      },
+      {
+        title: 'Webhooks',
+        description: 'Event subscriptions & delivery',
+        icon: Webhook,
+        href: (realm) => `/realms/${realm}/webhooks`
       }
     ]
   }

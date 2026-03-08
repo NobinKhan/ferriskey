@@ -1,6 +1,5 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { resolveApiBase } from '$lib/api/config';
 import { getSessionUser } from '$lib/auth/session';
 
 export const load: PageServerLoad = async ({ cookies, params, url }) => {
@@ -14,8 +13,10 @@ export const load: PageServerLoad = async ({ cookies, params, url }) => {
   }
 
   if (!clientId || !redirectUri) {
+    // Redirect through our own /api proxy so the FERRISKEY_SESSION cookie
+    // stays on the dashboard domain instead of the backend domain.
     const authUrl = new URL(
-      `${resolveApiBase(url)}/realms/${params.realm}/protocol/openid-connect/auth`
+      `${url.origin}/api/realms/${params.realm}/protocol/openid-connect/auth`
     );
 
     authUrl.searchParams.set('response_type', 'code');

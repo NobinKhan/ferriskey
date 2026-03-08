@@ -16,21 +16,23 @@
   import BrandLogo from '$components/BrandLogo.svelte';
   import ThemeToggle from '$components/ThemeToggle.svelte';
   import { navigationGroups } from '$config/navigation';
-  import { resolveApiBase } from '$lib/api/config';
   import { ripple } from '$utils/ripple';
   import type { SessionUser } from '$lib/auth/session';
 
   let {
     realm,
+    realms = [],
     user,
     children
   }: {
     realm: string;
+    realms: { id: string; name: string }[];
     user: SessionUser;
     children: import('svelte').Snippet;
   } = $props();
 
   let sidebarOpen = $state(false);
+  let realmDropdownOpen = $state(false);
 
   const breadcrumbs = $derived.by(() =>
     page.url.pathname
@@ -62,7 +64,7 @@
   );
   const logoutHref = $derived.by(() => {
     const target = new URL(
-      `${resolveApiBase(page.url)}/realms/${realm}/protocol/openid-connect/logout`
+      `${page.url.origin}/api/realms/${realm}/protocol/openid-connect/logout`
     );
 
     target.searchParams.set('client_id', 'security-admin-console');
@@ -116,13 +118,27 @@
     >
       <div class="app-shell__brand-block">
         <BrandLogo />
-        <button type="button" class="app-shell__realm-switch" use:ripple>
+        <button type="button" class="app-shell__realm-switch" use:ripple onclick={() => (realmDropdownOpen = !realmDropdownOpen)}>
           <div>
             <small>Workspace</small>
             <strong>{realm}</strong>
           </div>
           <ChevronDown size={16} />
         </button>
+        {#if realmDropdownOpen && realms.length > 1}
+          <div class="app-shell__realm-dropdown">
+            {#each realms as r (r.name)}
+              <a
+                href="/realms/{r.name}/overview"
+                class="app-shell__realm-option"
+                class:app-shell__realm-option--active={r.name === realm}
+                onclick={() => (realmDropdownOpen = false)}
+              >
+                <strong>{r.name}</strong>
+              </a>
+            {/each}
+          </div>
+        {/if}
       </div>
 
       <div class="app-shell__workspace glass-panel">
@@ -274,6 +290,10 @@
     gap: 14px;
   }
 
+  .app-shell__brand-block {
+    position: relative;
+  }
+
   .app-shell__realm-switch,
   .app-shell__menu,
   .app-shell__icon-button,
@@ -294,6 +314,32 @@
     padding: 14px 16px;
     border-radius: 18px;
   }
+
+  .app-shell__realm-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0; right: 0;
+    z-index: 50;
+    display: grid; gap: 4px;
+    padding: 8px;
+    border-radius: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .app-shell__realm-option {
+    display: block;
+    padding: 10px 14px;
+    border-radius: 12px;
+    text-decoration: none;
+    color: var(--text-muted);
+    font-weight: 600;
+    transition: background 120ms ease;
+  }
+  .app-shell__realm-option:hover { background: var(--bg-inset); color: var(--text); }
+  .app-shell__realm-option--active { background: var(--primary-soft); color: var(--primary); }
+  .app-shell__realm-option strong { color: inherit; }
 
   .app-shell__realm-switch small,
   .app-shell__breadcrumbs,

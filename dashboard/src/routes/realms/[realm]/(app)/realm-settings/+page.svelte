@@ -1,97 +1,129 @@
 <script lang="ts">
-  import { BellRing, Globe, ShieldCheck, Webhook } from 'lucide-svelte';
-  import ChipTabs from '$components/ChipTabs.svelte';
+  import type { PageData, ActionData } from './$types';
+  import { Settings, Shield, Mail, Key, Compass, Lock } from 'lucide-svelte';
+  import { enhance } from '$app/forms';
   import SectionCard from '$components/SectionCard.svelte';
+  import { showToast } from '$lib/stores/toast';
+  import { ripple } from '$utils/ripple';
 
-  const tabs = ['General', 'Login', 'Webhooks', 'Security'];
-  const webhookEvents = [
-    'user.created',
-    'client.updated',
-    'login.failed',
-    'realm.deleted'
-  ];
+  let { data, form }: { data: PageData; form: ActionData } = $props();
+  let saving = $state(false);
+
+  $effect(() => {
+    if (form && typeof form === 'object') {
+      const f = form as Record<string, unknown>;
+      if (f.success && typeof f.message === 'string') showToast(f.message, 'success');
+      else if (typeof f.error === 'string') showToast(f.error, 'error');
+      saving = false;
+    }
+  });
+
+  const s = $derived(data.realm.settings ?? {
+    user_registration_enabled: false,
+    forgot_password_enabled: false,
+    remember_me_enabled: false,
+    magic_link_enabled: false,
+    magic_link_ttl: 300,
+    compass_enabled: false,
+  });
 </script>
 
-<div class="realm-page">
-  <section class="realm-page__hero glass-panel">
+<div class="settings-page">
+  <section class="settings-page__hero glass-panel">
     <div>
-      <p>Realm settings</p>
-      <h2>Configuration grouped into calmer, safer decision areas.</h2>
-      <span
-        >General metadata, login behavior, and outbound webhook controls now sit
-        in clearer operational sections.</span
-      >
+      <p>Configuration</p>
+      <h2>Realm settings</h2>
+      <span>Configure login behaviour, security features, and realm-level options for <strong>{data.realm.name}</strong>.</span>
     </div>
-    <ChipTabs items={tabs} active="General" tone="soft" />
   </section>
 
-  <section class="realm-page__content">
-    <SectionCard
-      eyebrow="General"
-      title="Realm identity"
-      description="Foundational settings kept visible without pushing operators into long forms."
-    >
-      <div class="realm-page__grid">
-        <div>
-          <Globe size={18} color="var(--primary)" /><strong>Name</strong><small
-            >master</small
-          >
-        </div>
-        <div>
-          <ShieldCheck size={18} color="var(--primary)" /><strong
-            >Signing algorithm</strong
-          ><small>RS256</small>
-        </div>
-        <div>
-          <BellRing size={18} color="var(--primary)" /><strong
-            >Remember me</strong
-          ><small>Enabled</small>
-        </div>
-        <div>
-          <Webhook size={18} color="var(--primary)" /><strong>Webhooks</strong
-          ><small>3 active endpoints</small>
-        </div>
+  <form
+    method="POST"
+    action="?/update-settings"
+    class="settings-page__grid"
+    use:enhance={() => { saving = true; return async ({ update }) => { await update(); }; }}
+  >
+    <SectionCard eyebrow="Login" title="Login page features" compact={true}>
+      <div class="settings-toggle-list">
+        <label>
+          <div>
+            <Shield size={18} />
+            <strong>User registration</strong>
+          </div>
+          <input type="checkbox" name="user_registration_enabled" checked={s.user_registration_enabled} />
+        </label>
+        <label>
+          <div>
+            <Key size={18} />
+            <strong>Forgot password</strong>
+          </div>
+          <input type="checkbox" name="forgot_password_enabled" checked={s.forgot_password_enabled} />
+        </label>
+        <label>
+          <div>
+            <Lock size={18} />
+            <strong>Remember me</strong>
+          </div>
+          <input type="checkbox" name="remember_me_enabled" checked={s.remember_me_enabled} />
+        </label>
       </div>
     </SectionCard>
 
-    <div class="realm-page__stack">
-      <SectionCard eyebrow="Login" title="Access posture" compact={true}>
-        <div class="realm-page__list">
-          <div><span>Self registration</span><strong>Enabled</strong></div>
-          <div><span>Forgot password</span><strong>Enabled</strong></div>
-          <div><span>Remember me</span><strong>Enabled</strong></div>
-        </div>
-      </SectionCard>
+    <SectionCard eyebrow="Magic link" title="Passwordless login" compact={true}>
+      <div class="settings-toggle-list">
+        <label>
+          <div>
+            <Mail size={18} />
+            <strong>Magic link enabled</strong>
+          </div>
+          <input type="checkbox" name="magic_link_enabled" checked={s.magic_link_enabled} />
+        </label>
+        <label class="settings-field">
+          <span>TTL (seconds)</span>
+          <input type="number" name="magic_link_ttl" value={s.magic_link_ttl} min="1" />
+        </label>
+      </div>
+    </SectionCard>
 
-      <SectionCard eyebrow="Webhooks" title="Outbound events" compact={true}>
-        <div class="realm-page__chips">
-          {#each webhookEvents as event (event)}
-            <span>{event}</span>
-          {/each}
-        </div>
-      </SectionCard>
-    </div>
-  </section>
+    <SectionCard eyebrow="Features" title="Optional modules" compact={true}>
+      <div class="settings-toggle-list">
+        <label>
+          <div>
+            <Compass size={18} />
+            <strong>Compass (auth flows)</strong>
+          </div>
+          <input type="checkbox" name="compass_enabled" checked={s.compass_enabled} />
+        </label>
+      </div>
+    </SectionCard>
+
+    <SectionCard eyebrow="Security" title="Signing algorithm" compact={true}>
+      <div class="settings-toggle-list">
+        <label class="settings-field">
+          <span>Default signing algorithm</span>
+          <select name="default_signing_algorithm">
+            <option value="RS256" selected={data.realm.default_signing_algorithm === 'RS256'}>RS256</option>
+            <option value="RS384" selected={data.realm.default_signing_algorithm === 'RS384'}>RS384</option>
+            <option value="RS512" selected={data.realm.default_signing_algorithm === 'RS512'}>RS512</option>
+            <option value="ES256" selected={data.realm.default_signing_algorithm === 'ES256'}>ES256</option>
+          </select>
+        </label>
+      </div>
+    </SectionCard>
+
+    <button type="submit" class="settings-page__save" use:ripple disabled={saving}>
+      <Settings size={16} />
+      {saving ? 'Saving...' : 'Save settings'}
+    </button>
+  </form>
 </div>
 
 <style>
-  .realm-page,
-  .realm-page__content,
-  .realm-page__stack,
-  .realm-page__grid,
-  .realm-page__list,
-  .realm-page__chips {
-    display: grid;
-    gap: 24px;
-  }
+  .settings-page { display: grid; gap: 24px; }
 
-  .realm-page__hero {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    gap: 20px;
-    padding: 24px;
-  }
+  .settings-page__hero { padding: 24px; }
+
+  p, span, small { margin: 0; color: var(--text-muted); }
 
   h2 {
     margin: 8px 0 10px;
@@ -99,59 +131,86 @@
     letter-spacing: -0.05em;
   }
 
-  p,
-  span,
-  small {
-    margin: 0;
-    color: var(--text-muted);
-  }
-
-  .realm-page__content {
-    grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
-  }
-
-  .realm-page__grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
-  }
-
-  .realm-page__grid div,
-  .realm-page__list div {
+  .settings-page__grid {
     display: grid;
-    gap: 6px;
-    padding: 16px;
-    border-radius: 18px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+  }
+
+  .settings-toggle-list { display: grid; gap: 8px; }
+
+  .settings-toggle-list label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 16px;
     background: var(--bg-inset);
     border: 1px solid var(--border);
+    cursor: pointer;
+    transition: border-color 120ms ease;
   }
 
-  .realm-page__chips {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+  .settings-toggle-list label:hover { border-color: var(--border-strong); }
+
+  .settings-toggle-list label div {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-soft);
   }
 
-  .realm-page__chips span {
+  .settings-toggle-list label div strong { color: var(--text); font-size: 0.92rem; }
+
+  .settings-toggle-list input[type='checkbox'] {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--primary);
+    cursor: pointer;
+  }
+
+  .settings-field {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+
+  .settings-field span {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-soft);
+  }
+
+  .settings-field input[type='number'],
+  .settings-field select {
     padding: 12px 14px;
-    border-radius: 16px;
-    background: var(--primary-soft);
-    color: var(--primary);
-    font-weight: 700;
-  }
-
-  strong {
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: var(--surface-strong);
     color: var(--text);
+    font: inherit;
+    outline: 0;
   }
 
-  @media (max-width: 1000px) {
-    .realm-page__content,
-    .realm-page__grid,
-    .realm-page__chips {
-      grid-template-columns: 1fr;
-    }
+  .settings-page__save {
+    grid-column: 1 / -1;
+    justify-self: start;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 24px;
+    border-radius: 16px;
+    border: 0;
+    background: var(--primary);
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
+  }
 
-    .realm-page__hero {
-      flex-direction: column;
-      align-items: flex-start;
-    }
+  .settings-page__save:disabled { opacity: 0.6; cursor: wait; }
+
+  @media (max-width: 900px) {
+    .settings-page__grid { grid-template-columns: 1fr; }
   }
 </style>

@@ -7,4 +7,4 @@
   const currentRealm = $derived(String(page.params.realm ?? 'master'));
 </script>
 
-<AppShell realm={currentRealm} user={data.sessionUser}>{@render children()}</AppShell>
+<AppShell realm={currentRealm} realms={data.realms} user={data.sessionUser}>{@render children()}</AppShell>
