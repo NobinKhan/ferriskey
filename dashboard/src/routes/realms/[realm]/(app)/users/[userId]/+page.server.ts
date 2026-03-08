@@ -31,16 +31,15 @@ type Credential = {
   created_at: string;
 };
 
-type Permission = {
-  name: string;
-};
+type Permission = string;
 
 export const load: PageServerLoad = async ({ cookies, fetch, params, url }) => {
   const realm = params.realm;
   const userId = params.userId;
 
   const [user, roles, credentials, permissions, allRoles] = await Promise.all([
-    loadRealmResource<User>({ cookies, fetch, params, url }, `/realms/${realm}/users/${userId}`),
+    loadRealmResource<{ data: User }>({ cookies, fetch, params, url }, `/realms/${realm}/users/${userId}`)
+      .then((r) => r.data),
     loadRealmResource<{ data: Role[] }>({ cookies, fetch, params, url }, `/realms/${realm}/users/${userId}/roles`)
       .then((r) => r.data).catch(() => [] as Role[]),
     loadRealmResource<{ data: Credential[] }>({ cookies, fetch, params, url }, `/realms/${realm}/users/${userId}/credentials`)

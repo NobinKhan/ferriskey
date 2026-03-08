@@ -66,8 +66,13 @@
     return new Intl.DateTimeFormat('en', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(d);
   }
 
-  const assignedRoleIds = $derived(new Set(data.roles.map((r) => r.id)));
-  const availableRoles = $derived(data.allRoles.filter((r) => !assignedRoleIds.has(r.id)));
+  const roles = $derived(data.roles ?? []);
+  const credentials = $derived(data.credentials ?? []);
+  const permissions = $derived(data.permissions ?? []);
+  const allRoles = $derived(data.allRoles ?? []);
+  const requiredActions = $derived(data.user.required_actions ?? []);
+  const assignedRoleIds = $derived(new Set(roles.map((r) => r.id)));
+  const availableRoles = $derived(allRoles.filter((r) => !assignedRoleIds.has(r.id)));
   const realm = $derived(page.params.realm);
 </script>
 
@@ -145,18 +150,18 @@
       </div>
       <div class="info-card">
         <Shield size={16} />
-        <div><span>Roles</span><strong>{data.roles.length}</strong></div>
+        <div><span>Roles</span><strong>{roles.length}</strong></div>
       </div>
       <div class="info-card">
         <Key size={16} />
-        <div><span>Credentials</span><strong>{data.credentials.length}</strong></div>
+        <div><span>Credentials</span><strong>{credentials.length}</strong></div>
       </div>
     </section>
 
-    {#if data.user.required_actions.length > 0}
+    {#if requiredActions.length > 0}
       <SectionCard eyebrow="Actions" title="Required actions" compact={true}>
         <div class="chip-list">
-          {#each data.user.required_actions as action (action)}
+          {#each requiredActions as action (action)}
             <span class="chip chip--warning">{action}</span>
           {/each}
         </div>
@@ -174,8 +179,8 @@
       {/snippet}
 
       <div class="item-list">
-        {#if data.credentials.length > 0}
-          {#each data.credentials as cred (cred.id)}
+        {#if credentials.length > 0}
+          {#each credentials as cred (cred.id)}
             <div class="item-row">
               <div class="item-row__icon"><Key size={18} /></div>
               <div class="item-row__info">
@@ -205,8 +210,8 @@
       {/snippet}
 
       <div class="item-list">
-        {#if data.roles.length > 0}
-          {#each data.roles as role (role.id)}
+        {#if roles.length > 0}
+          {#each roles as role (role.id)}
             <div class="item-row">
               <div class="item-row__icon item-row__icon--success"><Shield size={18} /></div>
               <div class="item-row__info">
@@ -229,10 +234,10 @@
   <!-- ── Permissions ───────────────────────────────────────── -->
   {#if activeTab === 'Permissions'}
     <SectionCard eyebrow="Access" title="Effective permissions" compact={true}>
-      {#if data.permissions.length > 0}
+      {#if permissions.length > 0}
         <div class="chip-list">
-          {#each data.permissions as perm (perm.name)}
-            <span class="chip chip--success">{perm.name}</span>
+          {#each permissions as perm (perm)}
+            <span class="chip chip--success">{perm}</span>
           {/each}
         </div>
       {:else}

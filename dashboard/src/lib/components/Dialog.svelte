@@ -26,15 +26,17 @@
   }
 
   function handleKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape') {
+    if (open && event.key === 'Escape') {
       close();
     }
   }
 </script>
 
+<svelte:window onkeydown={handleKeydown} />
+
 {#if open}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="dialog-backdrop" onclick={handleBackdrop} onkeydown={handleKeydown}>
+  <div class="dialog-backdrop" onclick={handleBackdrop} onkeydown={handleKeydown} tabindex="-1">
     <div class="dialog glass-panel" role="dialog" aria-modal="true" aria-label={title}>
       <header class="dialog__header">
         <strong>{title}</strong>

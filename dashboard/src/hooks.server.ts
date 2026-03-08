@@ -28,6 +28,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     body: event.request.method !== 'GET' && event.request.method !== 'HEAD'
       ? await event.request.arrayBuffer()
       : undefined,
+    redirect: 'manual',
     // @ts-expect-error Node-fetch duplex option needed for streaming bodies
     duplex: 'half',
   });
