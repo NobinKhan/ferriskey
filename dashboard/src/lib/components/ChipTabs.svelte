@@ -2,10 +2,12 @@
   let {
     items,
     active,
+    onselect,
     tone = 'default'
   }: {
     items: string[];
     active: string;
+    onselect?: (item: string) => void;
     tone?: 'default' | 'soft';
   } = $props();
 </script>
@@ -17,14 +19,16 @@
   aria-label="Page tabs"
 >
   {#each items as item (item)}
-    <div
+    <button
+      type="button"
       class:chip-tabs__item--active={active === item}
       class="chip-tabs__item"
       role="tab"
       aria-selected={active === item}
+      onclick={() => onselect?.(item)}
     >
       {item}
-    </div>
+    </button>
   {/each}
 </div>
 
@@ -48,10 +52,12 @@
   .chip-tabs__item {
     padding: 10px 14px;
     border-radius: 999px;
+    border: 0;
     font-size: 0.86rem;
     font-weight: 700;
     color: var(--text-muted);
     background: transparent;
+    cursor: pointer;
   }
 
   .chip-tabs__item--active {

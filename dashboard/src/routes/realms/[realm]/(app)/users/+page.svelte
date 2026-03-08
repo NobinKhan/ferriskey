@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { PageData } from './$types';
   import {
     Mail,
     Search,
@@ -12,44 +13,103 @@
   import SectionCard from '$components/SectionCard.svelte';
   import { ripple } from '$utils/ripple';
 
+  let { data }: { data: PageData } = $props();
   const currentRealm = String(page.params.realm ?? 'master');
   const filters = ['All users', 'Members', 'Service accounts'];
-  const users = [
-    {
-      name: 'Ariana West',
-      email: 'ariana@barrzen.com',
-      type: 'Member',
-      roles: 'Realm admin',
-      status: 'Active'
-    },
-    {
-      name: 'Northwind Sync',
-      email: 'sync@services.local',
-      type: 'Service',
-      roles: 'Automation',
-      status: 'Healthy'
-    },
-    {
-      name: 'Milan Reza',
-      email: 'milan@barrzen.com',
-      type: 'Member',
-      roles: 'Security analyst',
-      status: 'Pending action'
-    },
-    {
-      name: 'Customer Portal',
-      email: 'portal@services.local',
-      type: 'Service',
-      roles: 'Confidential client',
-      status: 'Active'
+  let activeFilter = $state('All users');
+  let searchTerm = $state('');
+
+  function displayName(user: PageData['users'][number]) {
+    const fullName = `${user.firstname} ${user.lastname}`.trim();
+    return fullName || user.username;
+  }
+
+  function initials(user: PageData['users'][number]) {
+    return displayName(user)
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? '')
+      .join('');
+  }
+
+  function accountType(user: PageData['users'][number]) {
+    return user.client_id ? 'Service account' : 'Member';
+  }
+
+  function accountStatus(user: PageData['users'][number]) {
+    if (!user.enabled) {
+      return 'Disabled';
     }
-  ];
-  const requiredActions = ['Configure OTP', 'Verify email', 'Update password'];
-  const roleAssignments = [
-    { name: 'realm-admin', scope: 'Realm', members: '12 assignees' },
-    { name: 'audit-review', scope: 'SeaWatch', members: '4 assignees' },
-    { name: 'support-operator', scope: 'Clients', members: '9 assignees' }
-  ];
+
+    if (user.required_actions.length > 0) {
+      return 'Pending action';
+    }
+
+    if (user.client_id) {
+      return 'Healthy';
+    }
+
+    return 'Active';
+  }
+
+  function formatDate(value: string) {
+    const parsed = new Date(value);
+
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+
+    return new Intl.DateTimeFormat('en', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    }).format(parsed);
+  }
+
+  const membersCount = $derived(data.users.filter((user) => !user.client_id).length);
+  const serviceAccountsCount = $derived(
+    data.users.filter((user) => Boolean(user.client_id)).length
+  );
+  const verifiedCount = $derived(data.users.filter((user) => user.email_verified).length);
+  const pendingCount = $derived(
+    data.users.filter((user) => user.required_actions.length > 0).length
+  );
+  const verifiedRate = $derived(
+    data.users.length === 0
+      ? '0%'
+      : `${((verifiedCount / data.users.length) * 100).toFixed(1)}%`
+  );
+
+  const visibleUsers = $derived.by(() => {
+    const term = searchTerm.trim().toLowerCase();
+
+    return data.users.filter((user) => {
+      const matchesFilter =
+        activeFilter === 'All users' ||
+        (activeFilter === 'Members' && !user.client_id) ||
+        (activeFilter === 'Service accounts' && Boolean(user.client_id));
+
+      if (!matchesFilter) {
+        return false;
+      }
+
+      if (!term) {
+        return true;
+      }
+
+      return [
+        displayName(user),
+        user.email,
+        user.username,
+        ...(user.roles?.map((role) => role.name) ?? [])
+      ].some((value) => value.toLowerCase().includes(term));
+    });
+  });
+
+  const selectedUser = $derived(visibleUsers[0] ?? data.users[0] ?? null);
+  const selectedRoles = $derived(selectedUser?.roles ?? []);
+  const selectedActions = $derived(selectedUser?.required_actions ?? []);
 </script>
 
 <div class="users-page">
@@ -63,7 +123,7 @@
       >
     </div>
     <div class="users-page__hero-actions">
-      <ChipTabs items={filters} active="All users" tone="soft" />
+      <ChipTabs items={filters} active={activeFilter} tone="soft" onselect={(item) => (activeFilter = item)} />
       <a
         href={`/realms/${currentRealm}/users/create`}
         class="users-page__cta"
@@ -78,26 +138,26 @@
   <section class="users-page__metrics">
     <MetricCard
       title="Total users"
-      value="18,426"
-      delta="+8.4%"
-      meta="realm members and services"
+      value={String(data.users.length)}
+      delta={`${membersCount} members`}
+      meta={`${serviceAccountsCount} service accounts`}
     >
       {#snippet icon()}<Users size={24} strokeWidth={2.2} />{/snippet}
     </MetricCard>
     <MetricCard
       title="Email verified"
-      value="91.2%"
-      delta="+2.1%"
-      meta="steady verification rate"
+      value={verifiedRate}
+      delta={`${verifiedCount} verified`}
+      meta="live realm verification rate"
       tone="success"
     >
       {#snippet icon()}<Mail size={24} strokeWidth={2.2} />{/snippet}
     </MetricCard>
     <MetricCard
-      title="MFA enrolled"
-      value="84.1%"
-      delta="+1.8%"
-      meta="configured or recovery ready"
+      title="Pending actions"
+      value={String(pendingCount)}
+      delta={`${data.users.length - pendingCount} ready`}
+      meta="accounts still blocked on follow-up tasks"
       tone="primary"
     >
       {#snippet icon()}<ShieldCheck size={24} strokeWidth={2.2} />{/snippet}
@@ -113,27 +173,38 @@
       {#snippet actions()}
         <label class="users-page__search">
           <Search size={16} />
-          <input type="search" placeholder="Search by name, email, role..." />
+          <input
+            type="search"
+            placeholder="Search by name, email, role..."
+            bind:value={searchTerm}
+          />
         </label>
       {/snippet}
 
       <div class="users-table">
-        {#each users as user (user.email)}
-          <div class="users-table__row">
-            <div class="users-table__identity">
-              <span>{user.name.slice(0, 2).toUpperCase()}</span>
-              <div>
-                <strong>{user.name}</strong>
-                <small>{user.email}</small>
+        {#if visibleUsers.length > 0}
+          {#each visibleUsers as user (user.id)}
+            <div class="users-table__row">
+              <div class="users-table__identity">
+                <span>{initials(user)}</span>
+                <div>
+                  <strong>{displayName(user)}</strong>
+                  <small>{user.email}</small>
+                </div>
               </div>
+              <div>
+                <strong>{accountType(user)}</strong>
+                <small>{user.roles?.map((role) => role.name).join(', ') || user.username}</small>
+              </div>
+              <div class="users-table__status">{accountStatus(user)}</div>
             </div>
-            <div>
-              <strong>{user.type}</strong>
-              <small>{user.roles}</small>
-            </div>
-            <div class="users-table__status">{user.status}</div>
+          {/each}
+        {:else}
+          <div class="users-page__empty">
+            <strong>No users match this view yet.</strong>
+            <small>Try a broader filter or clear the search query.</small>
           </div>
-        {/each}
+        {/if}
       </div>
     </SectionCard>
 
@@ -144,18 +215,25 @@
         description="A cleaner detail pane for everyday admin review."
         compact={true}
       >
-        <div class="users-page__profile">
-          <div>
-            <strong>Ariana West</strong>
-            <small>Realm admin</small>
+        {#if selectedUser}
+          <div class="users-page__profile">
+            <div>
+              <strong>{displayName(selectedUser)}</strong>
+              <small>{selectedRoles.map((role) => role.name).join(', ') || accountType(selectedUser)}</small>
+            </div>
+            <div class="users-page__profile-grid">
+              <div><span>Username</span><strong>{selectedUser.username}</strong></div>
+              <div><span>Status</span><strong>{accountStatus(selectedUser)}</strong></div>
+              <div><span>Email verified</span><strong>{selectedUser.email_verified ? 'Yes' : 'No'}</strong></div>
+              <div><span>Created</span><strong>{formatDate(selectedUser.created_at)}</strong></div>
+            </div>
           </div>
-          <div class="users-page__profile-grid">
-            <div><span>Username</span><strong>ariana</strong></div>
-            <div><span>Status</span><strong>Enabled</strong></div>
-            <div><span>Email verified</span><strong>Yes</strong></div>
-            <div><span>Created</span><strong>14 Dec 2025</strong></div>
+        {:else}
+          <div class="users-page__empty users-page__empty--compact">
+            <strong>No identities loaded.</strong>
+            <small>This realm has no users to inspect yet.</small>
           </div>
-        </div>
+        {/if}
       </SectionCard>
 
       <SectionCard
@@ -164,9 +242,16 @@
         compact={true}
       >
         <div class="users-page__chips">
-          {#each requiredActions as action (action)}
-            <span>{action}</span>
-          {/each}
+          {#if selectedActions.length > 0}
+            {#each selectedActions as action (action)}
+              <span>{action}</span>
+            {/each}
+          {:else}
+            <div class="users-page__empty users-page__empty--compact">
+              <strong>No follow-up steps.</strong>
+              <small>The selected identity is ready to sign in.</small>
+            </div>
+          {/if}
         </div>
       </SectionCard>
 
@@ -176,13 +261,20 @@
         compact={true}
       >
         <div class="users-page__role-list">
-          {#each roleAssignments as role (role.name)}
-            <div>
-              <strong>{role.name}</strong>
-              <span>{role.scope}</span>
-              <small>{role.members}</small>
+          {#if selectedRoles.length > 0}
+            {#each selectedRoles as role (role.id)}
+              <div>
+                <strong>{role.name}</strong>
+                <span>{selectedUser?.client_id ? 'Service account scope' : 'Realm scope'}</span>
+                <small>{selectedUser?.client_id ? 'Inherited from linked client' : 'Assigned directly'}</small>
+              </div>
+            {/each}
+          {:else}
+            <div class="users-page__empty users-page__empty--compact">
+              <strong>No explicit roles.</strong>
+              <small>Assign role mappings to surface them here.</small>
             </div>
-          {/each}
+          {/if}
         </div>
       </SectionCard>
     </div>
@@ -266,7 +358,8 @@
 
   .users-table,
   .users-page__profile-grid,
-  .users-page__chips {
+  .users-page__chips,
+  .users-page__empty {
     display: grid;
     gap: 12px;
   }
@@ -318,6 +411,19 @@
     font-size: 0.82rem;
     font-weight: 700;
     justify-self: start;
+  }
+
+  .users-page__empty {
+    padding: 18px;
+    border-radius: 18px;
+    background: var(--bg-inset);
+    border: 1px dashed var(--border);
+  }
+
+  .users-page__empty--compact {
+    padding: 0;
+    background: transparent;
+    border: 0;
   }
 
   .users-page__profile-grid {
