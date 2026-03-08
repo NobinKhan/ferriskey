@@ -13,11 +13,17 @@
   import ThemeToggle from '$components/ThemeToggle.svelte';
   import { navigationGroups } from '$config/navigation';
   import { ripple } from '$utils/ripple';
+  import type { SessionUser } from '$lib/auth/session';
 
   let {
     realm,
+    user,
     children
-  }: { realm: string; children: import('svelte').Snippet } = $props();
+  }: {
+    realm: string;
+    user: SessionUser;
+    children: import('svelte').Snippet;
+  } = $props();
 
   let sidebarOpen = $state(false);
 
@@ -35,6 +41,17 @@
     { label: 'Plan', value: 'Enterprise' },
     { label: 'Sync', value: 'Live' }
   ];
+
+  const userInitials = $derived.by(() =>
+    user.name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? '')
+      .join('') || 'BA'
+  );
+
+  const userMeta = $derived(user.preferredUsername ?? user.email ?? realm);
 
   function isActive(href: string) {
     return (
@@ -176,10 +193,10 @@
             <Bell size={18} />
           </button>
           <button type="button" class="app-shell__profile" use:ripple>
-            <span class="app-shell__avatar">BZ</span>
+            <span class="app-shell__avatar">{userInitials}</span>
             <div>
-              <strong>Barrzen</strong>
-              <small>Product team</small>
+              <strong>{user.name}</strong>
+              <small>{userMeta}</small>
             </div>
           </button>
         </div>

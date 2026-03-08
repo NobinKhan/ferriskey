@@ -1,16 +1,86 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import { page } from '$app/state';
+  import { apiRequest, ApiError } from '$lib/api/client';
   import { ArrowRight, ShieldCheck, Sparkles } from 'lucide-svelte';
   import BrandLogo from '$components/BrandLogo.svelte';
   import ThemeToggle from '$components/ThemeToggle.svelte';
   import { ripple } from '$utils/ripple';
 
   const realmName = String(page.params.realm ?? 'master');
+  const clientId = $derived(
+    page.url.searchParams.get('client_id') ?? 'security-admin-console'
+  );
   const benefits = [
     'Minimal Design visual system across auth and admin pages',
     'Clearer MFA and required action entry points',
     'Barrzen branding with SSR-ready foundations'
   ];
+
+  type AuthenticateResponse = {
+    message?: string | null;
+    required_actions?: string[] | null;
+    status: 'Success' | 'RequiresActions' | 'RequiresOtpChallenge' | 'Failed';
+    token?: string | null;
+    url?: string | null;
+  };
+
+  let username = $state('');
+  let password = $state('');
+  let errorMessage = $state('');
+  let isSubmitting = $state(false);
+
+  async function handleSubmit(event: SubmitEvent) {
+    event.preventDefault();
+    errorMessage = '';
+    isSubmitting = true;
+
+    try {
+      const response = await apiRequest<AuthenticateResponse>({
+        url: page.url,
+        fetcher: fetch,
+        path: `/realms/${realmName}/login-actions/authenticate?client_id=${encodeURIComponent(clientId)}`,
+        init: {
+          method: 'POST',
+          body: JSON.stringify({
+            username,
+            password
+          })
+        }
+      });
+
+      if (response.url) {
+        window.location.href = response.url;
+        return;
+      }
+
+      if (response.status === 'Success') {
+        await goto(`/realms/${realmName}/overview`, { invalidateAll: true });
+        return;
+      }
+
+      if (response.status === 'RequiresOtpChallenge') {
+        errorMessage =
+          'OTP challenge is required. That follow-up screen has not been migrated into the dashboard yet.';
+        return;
+      }
+
+      if (response.status === 'RequiresActions') {
+        errorMessage =
+          'This account has required actions pending. Those flows still need to be migrated from the legacy app.';
+        return;
+      }
+
+      errorMessage = response.message ?? 'Authentication failed. Please try again.';
+    } catch (error) {
+      errorMessage =
+        error instanceof ApiError
+          ? error.message
+          : 'Authentication failed. Please check your credentials and try again.';
+    } finally {
+      isSubmitting = false;
+    }
+  }
 </script>
 
 <div class="login-page">
@@ -52,7 +122,7 @@
       </div>
     </div>
 
-    <form class="login-page__form">
+    <form class="login-page__form" onsubmit={handleSubmit}>
       <div class="login-page__form-head">
         <strong>Welcome back</strong>
         <span>Use your realm credentials to continue.</span>
@@ -60,19 +130,35 @@
 
       <label>
         <span>Email or username</span>
-        <input type="text" placeholder="admin or admin@example.com" />
+        <input
+          type="text"
+          placeholder="admin or admin@example.com"
+          bind:value={username}
+          autocomplete="username"
+          required
+        />
       </label>
       <label>
         <span>Password</span>
-        <input type="password" placeholder="Enter your password" />
+        <input
+          type="password"
+          placeholder="Enter your password"
+          bind:value={password}
+          autocomplete="current-password"
+          required
+        />
       </label>
       <label>
         <span>Realm</span>
         <input type="text" value={realmName} readonly />
       </label>
 
-      <button type="button" class="login-page__submit" use:ripple>
-        Continue
+      {#if errorMessage}
+        <p class="login-page__error">{errorMessage}</p>
+      {/if}
+
+      <button type="submit" class="login-page__submit" use:ripple disabled={isSubmitting}>
+        {isSubmitting ? 'Signing in...' : 'Continue'}
         <ArrowRight size={16} />
       </button>
 
@@ -227,6 +313,21 @@
     color: white;
     font-weight: 700;
     cursor: pointer;
+  }
+
+  .login-page__submit:disabled {
+    opacity: 0.7;
+    cursor: wait;
+  }
+
+  .login-page__error {
+    margin: 0;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: color-mix(in srgb, #d14343 12%, var(--surface));
+    border: 1px solid color-mix(in srgb, #d14343 28%, transparent);
+    color: #b42318;
+    line-height: 1.6;
   }
 
   .login-page__link {
